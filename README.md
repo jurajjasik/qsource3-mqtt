@@ -164,6 +164,25 @@ These are the commands subscribed by the client to control the internal state of
 > }
 > ```
 
+#### `<topic_base>/cmnd/<device_name>/dc_offst`
+
+- **Description**: Gets or sets the DC offset \( U_{\text{ofst}} \) (in Volts) for the system. The DC offset is calculated as \( U_{\text{ofst}} = \frac{U_1 + U_2}{2} \), where \( U_1 \) and \( U_2 \) are the voltages applied to the rods. When setting the DC offset, \( U_1 \) and \( U_2 \) are adjusted based on the provided offset and the current DC difference \( U_{\text{diff}} \).
+- **Payload**: 
+  - To **set** the DC offset:
+    - `"value": <float>` - The desired DC offset value in volts.
+  - To **get** the current DC offset, no specific payload is required.
+- **Response Message**: 
+  - `<topic_base>/response/<device_name>/dc_offst`
+- **Error Message**: 
+  - `<topic_base>/error/disconnected/<device_name>`
+
+> Example Payload (for setting the DC offset):
+> ```json
+> {
+>   "value": -5.0
+> }
+> ```
+
 ### Response Messages
 
 These messages are sent by the client in response to command messages.
@@ -254,6 +273,21 @@ These messages are sent by the client in response to command messages.
 > ```json
 > {
 >   "value": [[50.0, -0.001], [100.0, -0.0015], [150.0, -0.0005]],
+>   "sender_payload": {}
+> }
+> ```
+
+#### `<topic_base>/response/<device_name>/dc_offst`
+
+- **Description**: Returns the current DC offset \( U_{\text{ofst}} \) in volts.
+- **Payload**: 
+  - `"value": <float>` - The current or newly set DC offset value.
+  - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
+
+> Example Payload (for getting the DC offset):
+> ```json
+> {
+>   "value": -5.0,
 >   "sender_payload": {}
 > }
 > ```
