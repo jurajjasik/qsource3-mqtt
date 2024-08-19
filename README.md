@@ -5,12 +5,12 @@ MQTT client for the JanasCard QSource3 RF generator, designed for controlling a 
 
 ## Overview
 
-This MQTT client facilitates communication with the JanasCard QSource3 RF generator using MQTT (Message Queuing Telemetry Transport) protocol. It allows users to control the RF generator, monitor its status, and respond to commands remotely. The client leverages the [janascard-qsource3 library](https://github.com/jurajjasik/janascard-qsource3) for direct interaction with the RF generator.
+This MQTT client facilitates communication with the JanasCard QSource3 RF generator using MQTT (Message Queuing Telemetry Transport) protocol. It allows users to control the RF generator, monitor its status, and respond to commands remotely. The client leverages the [janascard-qsource3 library][qsource3Library] for direct interaction with the RF generator.
 
 ## Dependencies
 
 - **janascard-qsource3**: A Python library to interface with the JanasCard QSource3 RF generator.
-  - Repository: [jurajjasik/janascard-qsource3](https://github.com/jurajjasik/janascard-qsource3)
+  - Repository: [jurajjasik/janascard-qsource3][qsource3Library]
 - **paho-mqtt**: A Python library for implementing MQTT clients.
 - **other dependencies**: List any additional libraries or tools your client depends on.
 
@@ -328,3 +328,6 @@ These messages are sent by the client in response to command messages.
 
 ## Usage
 TODO ...
+
+
+[qsource3Library]: https://github.com/jurajjasik/janascard-qsource3
