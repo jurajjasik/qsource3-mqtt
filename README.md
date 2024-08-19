@@ -44,6 +44,40 @@ These messages are sent by the client to provide information about the connectio
 - **Description**: This topic identifies the connected QSource3 device. Subscribing to this topic allows you to check if the device is connected.
 - **Message**: A retained message (value = 1) is published on this topic when the device is connected.
 
+#### `<topic_base>/state/<device_name>`
+
+- **Description**: Publishes the current state of the quadrupole, including various operational parameters and statuses. This message is generated every `<milliseconds>` milliseconds, where the interval is predefined in the configuration YAML file.
+- **Payload**: 
+  - `"range": <int>` - The current mass measurement range of the quadrupole. 
+    - `0`: Highest range, typically around 1050 kHz.
+    - `1`: Mid-range, typically around 480 kHz.
+    - `2`: Lowest range, typically around 240 kHz.
+  - `"frequency": <float>` - The frequency of the generator at the actual range in Hz.
+  - `"rf_amp": <float>` - The RF amplitude with zero to peak value in Volts.
+  - `"dc1": <float>` - The DC voltage \( U_1 \) in Volts.
+  - `"dc2": <float>` - The DC voltage \( U_2 \) in Volts.
+  - `"current": <float>` - The RF generator current in mA.
+  - `"mz": <float>` - The last value of the *m/z* ratio.
+  - `"is_dc_on": <bool>` - The current status of the DC difference flag.
+  - `"is_rod_polarity_positive": <bool>` - The current polarity of the DC difference applied to the rods.
+  - `"max_mz": <float>` - The maximum *m/z* value of the quadrupole.
+
+> Example Payload:
+> ```json
+> {
+>   "range": 1,
+>   "frequency": 480000.0,
+>   "rf_amp": 500.0,
+>   "dc1": 10.0,
+>   "dc2": -10.0,
+>   "current": 150.0,
+>   "mz": 50.5,
+>   "is_dc_on": true,
+>   "is_rod_polarity_positive": true,
+>   "max_mz": 1000.0
+> }
+> ```
+
 ### Error Messages
 
 These messages are sent by the client when there are issues such as disconnection.
