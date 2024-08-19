@@ -111,6 +111,59 @@ These are the commands subscribed by the client to control the internal state of
 > }
 > ```
 
+#### `<topic_base>/cmnd/<device_name>/max_mz`
+
+- **Description**: Retrieves the maximum *m/z* value of the quadrupole. The values of \(\delta(m/z)\) and \(\rho(m/z)\) are not accounted for in this calculation.
+- **Payload**: 
+  - No payload is required for this command. It acts as a getter to retrieve the maximum *m/z* value.
+- **Response Message**: 
+  - `<topic_base>/response/<device_name>/max_mz`
+- **Error Message**: 
+  - `<topic_base>/error/disconnected/<device_name>`
+
+> Example Payload:
+> ```json
+> {}
+> ```
+
+#### `<topic_base>/cmnd/<device_name>/calib_pnts_dc`
+
+- **Description**: Gets or sets the calibration points for the DC difference (resolution) used to construct \(\rho(m/z)\). The points are represented as a 2D array, where each entry is a pair of *m/z* and \(\rho\) values. When setting these points, a new interpolation function (`interp_fnc_calib_pnts_dc`) is created based on the provided calibration points.
+- **Payload**: 
+  - To **set** calibration points: 
+    - `"value": [[<float (m/z)_0>, <float \(\rho\)_0>], [<float (m/z)_1>, <float \(\rho\)_1>], ...]`
+  - To **get** the current calibration points, no specific payload is required.
+- **Response Message**: 
+  - `<topic_base>/response/<device_name>/calib_pnts_dc`
+- **Error Message**: 
+  - `<topic_base>/error/disconnected/<device_name>`
+
+> Example Payload (for setting calibration points):
+> ```json
+> {
+>   "value": [[50.0, -0.001], [100.0, -0.002], [150.0, -0.003]]
+> }
+> ```
+
+#### `<topic_base>/cmnd/<device_name>/calib_pnts_rf`
+
+- **Description**: Gets or sets the calibration points for the RF amplitude (*m/z* calibration) used to construct \(\delta(m/z)\). The points are represented as a 2D array, where each entry is a pair of *m/z* and \(\delta\) values. When setting these points, a new interpolation function (`interp_fnc_calib_pnts_rf`) is created based on the provided calibration points.
+- **Payload**: 
+  - To **set** calibration points: 
+    - `"value": [[<float (m/z)_0>, <float \(\delta\)_0>], [<float (m/z)_1>, <float \(\delta\)_1>], ...]`
+  - To **get** the current calibration points, no specific payload is required.
+- **Response Message**: 
+  - `<topic_base>/response/<device_name>/calib_pnts_rf`
+- **Error Message**: 
+  - `<topic_base>/error/disconnected/<device_name>`
+
+> Example Payload (for setting calibration points):
+> ```json
+> {
+>   "value": [[50.0, -0.001], [100.0, -0.0015], [150.0, -0.0005]]
+> }
+> ```
+
 ### Response Messages
 
 These messages are sent by the client in response to command messages.
@@ -157,6 +210,51 @@ These messages are sent by the client in response to command messages.
 > {
 >   "value": true,
 >   "sender_payload": {"value": true}
+> }
+> ```
+
+#### `<topic_base>/response/<device_name>/max_mz`
+
+- **Description**: Returns the maximum *m/z* value of the quadrupole (`max_mz`).
+- **Payload**: 
+  - `"value": <float>` - The maximum *m/z* value.
+  - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
+
+> Example Payload:
+> ```json
+> {
+>   "value": 1000.0,
+>   "sender_payload": {}
+> }
+> ```
+
+#### `<topic_base>/response/<device_name>/calib_pnts_dc`
+
+- **Description**: Returns the current calibration points for the DC difference (`calib_pnts_dc`) as a 2D array.
+- **Payload**: 
+  - `"value": [[<float (m/z)_0>, <float \(\rho\)_0>], [<float (m/z)_1>, <float \(\rho\)_1>], ...]` - The current or newly set calibration points.
+  - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
+
+> Example Payload (for getting calibration points):
+> ```json
+> {
+>   "value": [[50.0, -0.001], [100.0, -0.002], [150.0, -0.003]],
+>   "sender_payload": {}
+> }
+> ```
+
+#### `<topic_base>/response/<device_name>/calib_pnts_rf`
+
+- **Description**: Returns the current calibration points for the RF amplitude (`calib_pnts_rf`) as a 2D array.
+- **Payload**: 
+  - `"value": [[<float (m/z)_0>, <float \(\delta\)_0>], [<float (m/z)_1>, <float \(\delta\)_1>], ...]` - The current or newly set calibration points.
+  - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
+
+> Example Payload (for getting calibration points):
+> ```json
+> {
+>   "value": [[50.0, -0.001], [100.0, -0.0015], [150.0, -0.0005]],
+>   "sender_payload": {}
 > }
 > ```
 
