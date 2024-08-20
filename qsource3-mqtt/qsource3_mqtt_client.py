@@ -1,5 +1,6 @@
 import json
 import logging
+import socket
 import time
 from functools import wraps
 from threading import Event, Thread
@@ -38,6 +39,8 @@ def handle_connection_error(method):
 
 class QSource3MQTTClient:
     def __init__(self, config_file):
+        self.disconnected = (False, None)
+
         self.load_config(config_file)
 
         self.qsource3 = QSource3Logic(
@@ -45,11 +48,15 @@ class QSource3MQTTClient:
             r0=self.config["r0"],
             on_connected=self.on_qsource3_connected,
         )
+
         self.client = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION2)
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
+        self.client.on_disconnect = self.on_disconnect
 
         self.connect_to_broker()
+        self.client.loop_start()
+
         self.status_event = Event()
 
     def load_config(self, config_file):
@@ -68,12 +75,15 @@ class QSource3MQTTClient:
             self.config["mqtt_port"],
             self.config["mqtt_connection_timeout"],
         )
-        self.client.loop_start()
+        self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
 
-    def on_connect(self, client, userdata, flags, rc, properties):
-        logger.debug(f"Connected with result code {rc}")
+    def on_connect(self, client, userdata, flags, reason_code, properties):
+        logger.debug(f"Connected with result code {reason_code}")
         # Subscribe to command topics
         self.client.subscribe(f"{self.topic_base}/cmnd/{self.device_name}/#")
+
+    def on_disconnect(self, client, userdata, flags, reason_code, properties):
+        self.disconnected = True, reason_code
 
     def on_message(self, client, userdata, msg):
         topic = msg.topic
