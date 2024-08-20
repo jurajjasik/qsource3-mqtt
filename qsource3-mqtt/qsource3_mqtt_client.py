@@ -12,9 +12,10 @@ from .qsource3_logic import QSource3Logic, QSource3NotConnectedException
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 def handle_connection_error(method):
@@ -40,7 +41,9 @@ class QSource3MQTTClient:
         self.load_config(config_file)
 
         self.qsource3 = QSource3Logic(
-            comport=self.config["qsource3_com_port"], r0=self.config["r0"]
+            comport=self.config["qsource3_com_port"],
+            r0=self.config["r0"],
+            on_connected=self.on_qsource3_connected,
         )
         self.client = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION2)
         self.client.on_connect = self.on_connect
@@ -149,12 +152,21 @@ class QSource3MQTTClient:
             json.dumps(status_payload),
         )
 
+    def on_qsource3_connected(self):
+        """Publishes a retained message indicating the qsource3 is connected."""
+        topic = f"{self.topic_base}/connected/{self.device_name}"
+        payload = "1"  # You can use any payload that indicates the device is connected, "1" is common
+        self.client.publish(topic, payload, retain=True)
+        logger.debug(f"Published qsource3 connected status to {topic}")
+
     def publish_response(self, command, value, sender_payload):
         response_payload = {"value": value, "sender_payload": sender_payload}
+        topic = f"{self.topic_base}/response/{self.device_name}/{command}"
         self.client.publish(
-            f"{self.topic_base}/response/{self.device_name}/{command}",
+            topic,
             json.dumps(response_payload),
         )
+        logger.debug(f"Publish topic: {topic}, payload: {response_payload}")
 
     def publish_error(self, command, error_message):
         error_payload = {"error": error_message}

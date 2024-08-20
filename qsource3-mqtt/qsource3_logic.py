@@ -26,7 +26,8 @@ def check_connection_decorator(method):
 
 
 class QSource3Logic:
-    def __init__(self, comport, r0):
+    def __init__(self, comport, r0, on_connected):
+        self.on_connected = on_connected
         self.r0 = r0
         self.comport = comport
         self.driver = None
@@ -58,6 +59,9 @@ class QSource3Logic:
                 )
             self.driver.set_range(self.current_range)
             self._is_connected = True
+            if self.on_connected is not None:
+                self.on_connected()
+
         except VisaIOError:
             self._is_connected = False
             raise QSource3NotConnectedException("QSource3 peripheral is not connected.")
