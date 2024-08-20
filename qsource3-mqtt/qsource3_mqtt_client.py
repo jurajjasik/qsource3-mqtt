@@ -74,7 +74,6 @@ class QSource3MQTTClient:
         logger.debug(f"Connected with result code {rc}")
         # Subscribe to command topics
         self.client.subscribe(f"{self.topic_base}/cmnd/{self.device_name}/#")
-        self.publish_status_loop()
 
     def on_message(self, client, userdata, msg):
         topic = msg.topic
@@ -141,8 +140,9 @@ class QSource3MQTTClient:
     # Example implementation of status publishing
     def publish_status_loop(self):
         while not self.status_event.is_set():
-            self.publish_status()
-            time.sleep(self.status_interval / 1000)
+            if self.client.is_connected():
+                self.publish_status()
+                time.sleep(self.status_interval / 1000)
 
     @handle_connection_error
     def publish_status(self):
