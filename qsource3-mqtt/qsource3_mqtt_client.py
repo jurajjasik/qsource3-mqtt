@@ -137,13 +137,6 @@ class QSource3MQTTClient:
             self.qsource3.set_range(payload["value"])
         self.publish_response("range", self.qsource3.get_range(), payload)
 
-    # Example implementation of status publishing
-    def publish_status_loop(self):
-        while not self.status_event.is_set():
-            if self.client.is_connected():
-                self.publish_status()
-                time.sleep(self.status_interval / 1000)
-
     @handle_connection_error
     def publish_status(self):
         status_payload = self.qsource3.get_status()
@@ -175,6 +168,13 @@ class QSource3MQTTClient:
             json.dumps(error_payload),
         )
         logger.debug(f"Publish error: {error_message}")
+
+    # Example implementation of status publishing
+    def publish_status_loop(self):
+        while not self.status_event.is_set():
+            if self.client.is_connected():
+                self.publish_status()
+                time.sleep(self.status_interval / 1000)
 
     def start_status_thread(self):
         status_thread = Thread(target=self.publish_status_loop)
