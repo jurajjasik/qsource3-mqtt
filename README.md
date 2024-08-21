@@ -42,7 +42,7 @@ These messages are sent by the client to provide information about the connectio
 #### `<topic_base>/connected/<device_name>` 
 
 - **Description**: This topic identifies the connected QSource3 device. Subscribing to this topic allows you to check if the device is connected.
-- **Message**: A retained message (value = 1) is published on this topic when the device is connected.
+- **Message**: A retained message (QOS = 1) is published on this topic when the device is connected.
 
 #### `<topic_base>/state/<device_name>`
 
