@@ -189,9 +189,9 @@ class QSource3MQTTClient:
 
     def publish_error(self, command, error_message):
         if self.client is not None and self.client.is_connected():
-            error_payload = {"error": error_message}
+            error_payload = {"error": error_message, "command": command}
             self.client.publish(
-                f"{self.topic_base}/error/disconnected/{self.device_name}/{command}",
+                f"{self.topic_base}/error/disconnected/{self.device_name}",
                 json.dumps(error_payload),
             )
             logger.debug(f"Publish error: {error_message}")
