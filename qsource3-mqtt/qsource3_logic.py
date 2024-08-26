@@ -2,8 +2,8 @@ from ctypes import Array
 from functools import wraps
 
 from pyvisa import VisaIOError
-from qsource3.massfilter import Quadrupole  # type: ignore
-from qsource3.qsource3driver import QSource3Driver  # type: ignore
+from qsource3.massfilter import Quadrupole
+from qsource3.qsource3driver import QSource3Driver
 
 
 class QSource3NotConnectedException(Exception):
