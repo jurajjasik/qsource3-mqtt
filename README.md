@@ -43,6 +43,7 @@ List of supported messages:
 - **Error Messages**: Sent when there are issues such as disconnection.
   - `<topic_base>/error/<device_name>/disconnected`
 - **Command Messages**: Subscribed by the client to control the internal state of the QSource3 device.
+  - `<topic_base>/cmnd/<device_name>/range`
   - `<topic_base>/cmnd/<device_name>/mz`
   - `<topic_base>/cmnd/<device_name>/is_dc_on`
   - `<topic_base>/cmnd/<device_name>/is_rod_polarity_positive`
@@ -51,6 +52,7 @@ List of supported messages:
   - `<topic_base>/cmnd/<device_name>/calib_pnts_rf`
   - `<topic_base>/cmnd/<device_name>/dc_offst`
 - **Response Messages**: Sent by the client in response to command messages.
+  - `<topic_base>/response/<device_name>/range`
   - `<topic_base>/response/<device_name>/mz`
   - `<topic_base>/response/<device_name>/is_dc_on`
   - `<topic_base>/response/<device_name>/is_rod_polarity_positive`
@@ -117,6 +119,26 @@ These are the commands subscribed by the client to control the internal state of
 - **Structure**: `<topic_base>/cmnd/<device_name>/<command>`
 - **Payload**: The payload typically includes a `"value"` field that sets the new value or retrieves the current value.
 - **Response**: A corresponding response message or an error message is published based on the outcome of the command.
+
+#### `<topic_base>/cmnd/<device_name>/range`
+
+- **Description**: Sets the mass range of the quadrupole. The range is defined by the frequency of the RF generator.
+- **Payload**: 
+  - `"value": <int>` - The mass range to set.
+    - `0`: Highest range, typically around 1050 kHz.
+    - `1`: Mid-range, typically around 480 kHz.
+    - `2`: Lowest range, typically around 240 kHz.
+- **Response Message**:
+  - `<topic_base>/response/<device_name>/range`
+- **Error Message**:
+  - `<topic_base>/error/<device_name>/disconnected`
+
+> Example Payload:
+> ```json
+> {
+>   "value": 1
+> }
+> ```
 
 #### `<topic_base>/cmnd/<device_name>/mz`
 
@@ -244,6 +266,27 @@ These are the commands subscribed by the client to control the internal state of
 ### Response Messages
 
 These messages are sent by the client in response to command messages.
+
+- **Structure**: `<topic_base>/response/<device_name>/<command>`
+- **Payload**: The payload typically includes a `"value"` field that provides the requested information or confirms the successful execution of the command. The original command's payload is also included for tracking purposes.
+
+#### `<topic_base>/response/<device_name>/range`
+
+- **Description**: Returns the current mass range of the quadrupole.
+- **Payload**: 
+  - `"value": <int>` - The current mass measurement range of the quadrupole. 
+    - `0`: Highest range, typically around 1050 kHz.
+    - `1`: Mid-range, typically around 480 kHz.
+    - `2`: Lowest range, typically around 240 kHz.
+  - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
+
+> Example Payload:
+> ```json
+> {
+>   "value": 1,
+>   "sender_payload": {"value": 1}
+> }
+> ```
 
 #### `<topic_base>/response/<device_name>/mz`
 
