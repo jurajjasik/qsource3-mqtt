@@ -35,6 +35,30 @@ The MQTT client requires a configuration file where you can specify various sett
 
 The client communicates using MQTT messages structured as `<topic_base>/<action>/<device_name>/<command>`.
 
+List of supported messages:
+
+- **Status Messages**: Provide information about the connection status of the QSource3 device.
+  - `<topic_base>/connected/<device_name>`
+  - `<topic_base>/state/<device_name>`
+- **Error Messages**: Sent when there are issues such as disconnection.
+  - `<topic_base>/error/<device_name>/disconnected`
+- **Command Messages**: Subscribed by the client to control the internal state of the QSource3 device.
+  - `<topic_base>/cmnd/<device_name>/mz`
+  - `<topic_base>/cmnd/<device_name>/is_dc_on`
+  - `<topic_base>/cmnd/<device_name>/is_rod_polarity_positive`
+  - `<topic_base>/cmnd/<device_name>/max_mz`
+  - `<topic_base>/cmnd/<device_name>/calib_pnts_dc`
+  - `<topic_base>/cmnd/<device_name>/calib_pnts_rf`
+  - `<topic_base>/cmnd/<device_name>/dc_offst`
+- **Response Messages**: Sent by the client in response to command messages.
+  - `<topic_base>/response/<device_name>/mz`
+  - `<topic_base>/response/<device_name>/is_dc_on`
+  - `<topic_base>/response/<device_name>/is_rod_polarity_positive`
+  - `<topic_base>/response/<device_name>/max_mz`
+  - `<topic_base>/response/<device_name>/calib_pnts_dc`
+  - `<topic_base>/response/<device_name>/calib_pnts_rf`
+  - `<topic_base>/response/<device_name>/dc_offst`
+
 ### Status Messages
 
 These messages are sent by the client to provide information about the connection status of the QSource3 device.
@@ -82,7 +106,7 @@ These messages are sent by the client to provide information about the connectio
 
 These messages are sent by the client when there are issues such as disconnection.
 
-#### `<topic_base>/error/disconnected/<device_name>`
+#### `<topic_base>/error/<device_name>/disconnected`
 
 - **Description**: This topic is used to notify when the QSource3 device is disconnected.
 
@@ -102,7 +126,7 @@ These are the commands subscribed by the client to control the internal state of
 - **Response Message**: 
   - `<topic_base>/response/<device_name>/mz`
 - **Error Message**: 
-  - `<topic_base>/error/disconnected/<device_name>`
+  - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload:
 > ```json
@@ -119,7 +143,7 @@ These are the commands subscribed by the client to control the internal state of
 - **Response Message**: 
   - `<topic_base>/response/<device_name>/is_dc_on`
 - **Error Message**: 
-  - `<topic_base>/error/disconnected/<device_name>`
+  - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload:
 > ```json
@@ -136,7 +160,7 @@ These are the commands subscribed by the client to control the internal state of
 - **Response Message**: 
   - `<topic_base>/response/<device_name>/is_rod_polarity_positive`
 - **Error Message**: 
-  - `<topic_base>/error/disconnected/<device_name>`
+  - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload:
 > ```json
@@ -153,7 +177,7 @@ These are the commands subscribed by the client to control the internal state of
 - **Response Message**: 
   - `<topic_base>/response/<device_name>/max_mz`
 - **Error Message**: 
-  - `<topic_base>/error/disconnected/<device_name>`
+  - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload:
 > ```json
@@ -170,7 +194,7 @@ These are the commands subscribed by the client to control the internal state of
 - **Response Message**: 
   - `<topic_base>/response/<device_name>/calib_pnts_dc`
 - **Error Message**: 
-  - `<topic_base>/error/disconnected/<device_name>`
+  - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload (for setting calibration points):
 > ```json
@@ -189,7 +213,7 @@ These are the commands subscribed by the client to control the internal state of
 - **Response Message**: 
   - `<topic_base>/response/<device_name>/calib_pnts_rf`
 - **Error Message**: 
-  - `<topic_base>/error/disconnected/<device_name>`
+  - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload (for setting calibration points):
 > ```json
@@ -208,7 +232,7 @@ These are the commands subscribed by the client to control the internal state of
 - **Response Message**: 
   - `<topic_base>/response/<device_name>/dc_offst`
 - **Error Message**: 
-  - `<topic_base>/error/disconnected/<device_name>`
+  - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload (for setting the DC offset):
 > ```json
