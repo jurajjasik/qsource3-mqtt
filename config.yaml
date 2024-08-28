@@ -1,7 +1,7 @@
 client_id: janascard-qsource3-40e52cfa-8bce-4572-b4b2-c5bc7de43018
 topic_base: "qsource3"
 device_name: "QSource3"
-mqtt_broker: "test.mosquitto.org"
+mqtt_broker: "localhost"
 mqtt_port: 1883
 mqtt_connection_timeout: 60
 
