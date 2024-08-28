@@ -10,7 +10,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
-    client = QSource3MQTTClient("config.yaml")
+    import sys
+    if len(sys.argv) > 1:
+        config_file = sys.argv[1]
+    else:
+        config_file = "config.yaml"
+        
+    client = QSource3MQTTClient(config_file)
 
     try:
         while True:
