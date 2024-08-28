@@ -1,0 +1,12 @@
+[Unit]
+Description=qsource3-mqtt Service
+After=multi-user.target
+
+[Service]
+Type=idle
+User=quad
+ExecStart=/usr/bin/python3 /home/quad/qsource3-mqtt/qsource3_mqtt_main.py /home/quad/qsource3-mqtt/config.yaml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
