@@ -1,3 +1,4 @@
+import time
 from ctypes import Array
 from functools import wraps
 
@@ -19,7 +20,9 @@ def check_connection_decorator(method):
         try:
             return method(self, *args, **kwargs)
         except VisaIOError:
-            self.is_connected = False
+            self._is_connected = False
+            self.driver = None
+            self.quads = [None, None]
             raise QSource3NotConnectedException("QSource3 peripheral is not connected.")
 
     return wrapper
@@ -31,7 +34,7 @@ class QSource3Logic:
         self.r0 = r0
         self.comport = comport
         self.driver = None
-        self.quads = [None, None, None]
+        self.quads = [None, None]
         self.current_range = 0
 
         self._is_connected = False
@@ -41,15 +44,15 @@ class QSource3Logic:
             self.try_connect()
 
     def _delay(self):
-        # TODO
-        pass
+        time.sleep(0.1)
 
     def try_connect(self):
         try:
             self.driver = QSource3Driver(self.comport)
-            for idx in range(3):
+            for idx in range(2):
                 self._delay()
                 self.driver.set_range(0)
+                self._delay()
                 freq = self.driver.frequency
                 self.quads[idx] = Quadrupole(
                     frequency=freq,
@@ -57,6 +60,7 @@ class QSource3Logic:
                     driver=self.driver,
                     name=f"Q{idx}",
                 )
+            self._delay()
             self.driver.set_range(self.current_range)
             self._is_connected = True
             if self.on_connected is not None:
@@ -126,7 +130,8 @@ class QSource3Logic:
 
     @check_connection_decorator
     def set_range(self, value: int):
-        self.driver.set_range(value)
+        if self.driver is not None:
+            self.driver.set_range(value)
         self.current_range = value
 
     @check_connection_decorator
@@ -135,6 +140,8 @@ class QSource3Logic:
 
     @check_connection_decorator
     def get_status(self):
+        if self.driver is None:
+            return None
         return {
             "range": self.current_range,
             "frequency": self.driver.frequency,

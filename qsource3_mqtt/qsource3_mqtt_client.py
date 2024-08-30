@@ -56,7 +56,7 @@ class QSource3MQTTClient:
 
         self.qsource3 = QSource3Logic(
             comport=self.config["qsource3_com_port"],
-            r0=self.config["r0"],
+            r0=float(self.config["r0"]),
             on_connected=self.on_qsource3_connected,
         )
 
@@ -93,7 +93,7 @@ class QSource3MQTTClient:
         # Subscribe to command topics
         self.client.subscribe(f"{self.topic_base}/cmnd/{self.device_name}/#")
 
-    def on_disconnect(self, client, userdata, flags, reason_code):
+    def on_disconnect(self, client, userdata, flags, reason_code=None):
         logger.debug(f"on_disconnect with reason code {reason_code}")
         self.disconnected = True, reason_code
 
@@ -163,10 +163,11 @@ class QSource3MQTTClient:
     def publish_status(self):
         if self.client is not None and self.client.is_connected():
             status_payload = self.qsource3.get_status()
-            self.client.publish(
-                f"{self.topic_base}/status/{self.device_name}/state",
-                json.dumps(status_payload),
-            )
+            if status_payload is not None:
+                self.client.publish(
+                    f"{self.topic_base}/status/{self.device_name}/state",
+                    json.dumps(status_payload),
+                )
 
     def on_qsource3_connected(self):
         """Publishes a retained message indicating the qsource3 is connected."""
