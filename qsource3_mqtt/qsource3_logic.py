@@ -60,6 +60,7 @@ class QSource3Logic:
                     driver=self.driver,
                     name=f"Q{idx}",
                 )
+                self.quads[idx].mz = 0
             self._delay()
             self.driver.set_range(self.current_range)
             self._is_connected = True
