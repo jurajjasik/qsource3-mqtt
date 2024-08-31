@@ -6,6 +6,10 @@ from pyvisa import VisaIOError
 from qsource3.massfilter import Quadrupole
 from qsource3.qsource3driver import QSource3Driver
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class QSource3NotConnectedException(Exception):
     """Exception raised when the QSource3 peripheral is not connected."""
@@ -19,17 +23,18 @@ def check_connection_decorator(method):
         self.check_connection()
         try:
             return method(self, *args, **kwargs)
-        except VisaIOError:
+        except (VisaIOError, ConnectionError) as e:
             self._is_connected = False
             self.driver = None
             self.quads = [None, None]
-            raise QSource3NotConnectedException("QSource3 peripheral is not connected.")
+            raise QSource3NotConnectedException(f"QSource3 peripheral is not connected. Error: {e}")
 
     return wrapper
 
 
 class QSource3Logic:
-    def __init__(self, comport, r0, on_connected):
+    def __init__(self, comport, r0, on_connected, number_of_ranges):
+        self.number_of_ranges = number_of_ranges
         self.on_connected = on_connected
         self.r0 = r0
         self.comport = comport
@@ -49,9 +54,9 @@ class QSource3Logic:
     def try_connect(self):
         try:
             self.driver = QSource3Driver(self.comport)
-            for idx in range(2):
+            for idx in range(self.number_of_ranges):
                 self._delay()
-                self.driver.set_range(0)
+                self.driver.set_range(idx)
                 self._delay()
                 freq = self.driver.frequency
                 self.quads[idx] = Quadrupole(
@@ -131,9 +136,13 @@ class QSource3Logic:
 
     @check_connection_decorator
     def set_range(self, value: int):
+        if value < 0 or value >= self.number_of_ranges:
+            logger.error(f"Invalid range value: {value}")
+            return
+        
         if self.driver is not None:
             self.driver.set_range(value)
-        self.current_range = value
+            self.current_range = value
 
     @check_connection_decorator
     def get_range(self) -> int:

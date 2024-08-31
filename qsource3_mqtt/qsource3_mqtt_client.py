@@ -58,6 +58,7 @@ class QSource3MQTTClient:
             comport=self.config["qsource3_com_port"],
             r0=float(self.config["r0"]),
             on_connected=self.on_qsource3_connected,
+            number_of_ranges=self.config["number_of_ranges"],
         )
 
     def load_config(self, config_file):
@@ -191,7 +192,7 @@ class QSource3MQTTClient:
         if self.client is not None and self.client.is_connected():
             error_payload = {"error": error_message, "command": command}
             self.client.publish(
-                f"{self.topic_base}/error/disconnected/{self.device_name}",
+                f"{self.topic_base}/error/{self.device_name}/disconnected",
                 json.dumps(error_payload),
             )
             logger.debug(f"Publish error: {error_message}")
