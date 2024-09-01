@@ -5,7 +5,8 @@ from qsource3_mqtt.qsource3_mqtt_client import QSource3MQTTClient
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 

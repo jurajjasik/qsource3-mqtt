@@ -9,6 +9,7 @@ from qsource3.massfilter import Quadrupole
 from qsource3.qsource3driver import QSource3Driver
 
 logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
 
 
 class QSource3NotConnectedException(Exception):
@@ -187,7 +188,9 @@ class QSource3Logic:
     @calib_pnts_dc.setter
     @check_connection_decorator
     def calib_pnts_dc(self, value: Array):
+        logger.debug(f"Setting calib_pnts_dc: {value}")
         self.quads[self.current_range].calib_pnts_dc = value
+        self.mz = self.quads[self.current_range].mz  # set mz to the last value
         self.settings["calib_pnts_dc"][self.current_range] = value
         self.save_settings()
 
@@ -199,7 +202,9 @@ class QSource3Logic:
     @calib_pnts_rf.setter
     @check_connection_decorator
     def calib_pnts_rf(self, value: Array):
+        logger.debug(f"Setting calib_pnts_rf: {value}")
         self.quads[self.current_range].calib_pnts_rf = value
+        self.mz = self.quads[self.current_range].mz  # set mz to the last value
         self.settings["calib_pnts_rf"][self.current_range] = value
         self.save_settings()
 

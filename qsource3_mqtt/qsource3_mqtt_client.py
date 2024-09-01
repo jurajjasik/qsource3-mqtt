@@ -11,12 +11,7 @@ import yaml
 
 from .qsource3_logic import QSource3Logic, QSource3NotConnectedException
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 def handle_connection_error(method):
