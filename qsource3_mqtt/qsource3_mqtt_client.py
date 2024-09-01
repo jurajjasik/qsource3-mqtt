@@ -117,6 +117,8 @@ class QSource3MQTTClient:
             self.handle_dc_offst(payload)
         elif topic.endswith("/range"):
             self.handle_range(payload)
+        elif topic.endswith("/mz"):
+            self.handle_mz(payload)
 
     # Define handlers for each command topic
     @handle_connection_error
@@ -160,6 +162,12 @@ class QSource3MQTTClient:
         if "value" in payload:
             self.qsource3.set_range(payload["value"])
         self.publish_response("range", self.qsource3.get_range(), payload)
+
+    @handle_connection_error
+    def handle_mz(self, payload):
+        if "value" in payload:
+            self.qsource3.mz = payload["value"]
+        self.publish_response("mz", self.qsource3.mz, payload)
 
     @handle_connection_error
     def publish_status(self):

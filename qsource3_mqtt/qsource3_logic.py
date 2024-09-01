@@ -224,12 +224,26 @@ class QSource3Logic:
         if self.driver is not None:
             self.driver.set_range(value)
             self.current_range = value
+
+            self.mz = self.quads[self.current_range].mz  # set mz to the last value
+
             self.settings["range"] = value
             self.save_settings()
 
     @check_connection_decorator
     def get_range(self) -> int:
         return self.current_range
+
+    @property
+    @check_connection_decorator
+    def mz(self) -> float:
+        return self.quads[self.current_range].mz
+
+    @mz.setter
+    @check_connection_decorator
+    def mz(self, value: float):
+        self.quads[self.current_range].mz = value
+        # mz element is not in settings => not saved
 
     @check_connection_decorator
     def get_status(self):
