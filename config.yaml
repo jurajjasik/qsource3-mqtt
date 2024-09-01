@@ -9,3 +9,5 @@ number_of_ranges: 2
 r0: 5e-3
 qsource3_com_port: "ASRL3::INSTR"
 status_interval: 1000
+
+settings_file: "settings.json"

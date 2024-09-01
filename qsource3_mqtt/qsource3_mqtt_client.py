@@ -59,6 +59,7 @@ class QSource3MQTTClient:
             r0=float(self.config["r0"]),
             on_connected=self.on_qsource3_connected,
             number_of_ranges=self.config["number_of_ranges"],
+            settings_file=self.config["settings_file"],
         )
 
     def load_config(self, config_file):
