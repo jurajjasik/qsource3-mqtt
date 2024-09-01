@@ -24,6 +24,7 @@ The MQTT client requires a configuration file where you can specify various sett
 - **device_name**: The name of the QSource3 device. Default is `QSource3`, but this can be customized, especially useful when managing multiple devices.
 
 > Example configuration:
+>
 > ```yaml
 > topic_base: "qsource3"
 > device_name: "QSource3"
@@ -65,7 +66,7 @@ List of supported messages:
 
 These messages are sent by the client to provide information about the connection status of the QSource3 device.
 
-#### `<topic_base>/connected/<device_name>` 
+#### `<topic_base>/connected/<device_name>`
 
 - **Description**: This topic identifies the connected QSource3 device. Subscribing to this topic allows you to check if the device is connected.
 - **Message**: A retained message (QOS = 1) is published on this topic when the device is connected.
@@ -73,8 +74,8 @@ These messages are sent by the client to provide information about the connectio
 #### `<topic_base>/state/<device_name>`
 
 - **Description**: Publishes the current state of the quadrupole, including various operational parameters and statuses. This message is generated every `<milliseconds>` milliseconds, where the interval is predefined in the configuration YAML file.
-- **Payload**: 
-  - `"range": <int>` - The current mass measurement range of the quadrupole. 
+- **Payload**:
+  - `"range": <int>` - The current mass measurement range of the quadrupole.
     - `0`: Highest range, typically around 1050 kHz.
     - `1`: Mid-range, typically around 480 kHz.
     - `2`: Lowest range, typically around 240 kHz.
@@ -89,6 +90,7 @@ These messages are sent by the client to provide information about the connectio
   - `"max_mz": <float>` - The maximum *m/z* value of the quadrupole.
 
 > Example Payload:
+>
 > ```json
 > {
 >   "range": 1,
@@ -123,7 +125,7 @@ These are the commands subscribed by the client to control the internal state of
 #### `<topic_base>/cmnd/<device_name>/range`
 
 - **Description**: Sets the mass range of the quadrupole. The range is defined by the frequency of the RF generator.
-- **Payload**: 
+- **Payload**:
   - `"value": <int>` - The mass range to set.
     - `0`: Highest range, typically around 1050 kHz.
     - `1`: Mid-range, typically around 480 kHz.
@@ -134,6 +136,7 @@ These are the commands subscribed by the client to control the internal state of
   - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload:
+>
 > ```json
 > {
 >   "value": 1
@@ -143,14 +146,15 @@ These are the commands subscribed by the client to control the internal state of
 #### `<topic_base>/cmnd/<device_name>/mz`
 
 - **Description**: Sets the RF amplitude and DC difference according to the provided *m/z* value and internal state parameters (`is_dc_on`, `is_rod_polarity_positive`, `calib_pnts_dc`, `calib_pnts_rf`).
-- **Payload**: 
+- **Payload**:
   - `"value": <float mz>` - The *m/z* ratio to set.
-- **Response Message**: 
+- **Response Message**:
   - `<topic_base>/response/<device_name>/mz`
-- **Error Message**: 
+- **Error Message**:
   - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload:
+>
 > ```json
 > {
 >   "value": 50.5
@@ -160,14 +164,15 @@ These are the commands subscribed by the client to control the internal state of
 #### `<topic_base>/cmnd/<device_name>/is_dc_on`
 
 - **Description**: Sets the flag to apply or remove the DC difference on the rods, which toggles between mass filter mode and ion guide mode. The DC offset and RF amplitude are preserved when this flag is toggled.
-- **Payload**: 
+- **Payload**:
   - `"value": <bool>` - Set to `True` to apply the DC difference (mass filter mode) or `False` to remove it (ion guide mode).
-- **Response Message**: 
+- **Response Message**:
   - `<topic_base>/response/<device_name>/is_dc_on`
-- **Error Message**: 
+- **Error Message**:
   - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload:
+>
 > ```json
 > {
 >   "value": true
@@ -177,14 +182,15 @@ These are the commands subscribed by the client to control the internal state of
 #### `<topic_base>/cmnd/<device_name>/is_rod_polarity_positive`
 
 - **Description**: Sets the polarity of the DC difference applied to the rods. The DC offset, RF amplitude, and the absolute value of the DC difference are preserved when this polarity is toggled.
-- **Payload**: 
+- **Payload**:
   - `"value": <bool>` - Set to `True` to apply a positive polarity to the rods or `False` to apply a negative polarity.
-- **Response Message**: 
+- **Response Message**:
   - `<topic_base>/response/<device_name>/is_rod_polarity_positive`
-- **Error Message**: 
+- **Error Message**:
   - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload:
+>
 > ```json
 > {
 >   "value": true
@@ -194,14 +200,15 @@ These are the commands subscribed by the client to control the internal state of
 #### `<topic_base>/cmnd/<device_name>/max_mz`
 
 - **Description**: Retrieves the maximum *m/z* value of the quadrupole. The values of \(\delta(m/z)\) and \(\rho(m/z)\) are not accounted for in this calculation.
-- **Payload**: 
+- **Payload**:
   - No payload is required for this command. It acts as a getter to retrieve the maximum *m/z* value.
-- **Response Message**: 
+- **Response Message**:
   - `<topic_base>/response/<device_name>/max_mz`
-- **Error Message**: 
+- **Error Message**:
   - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload:
+>
 > ```json
 > {}
 > ```
@@ -209,16 +216,17 @@ These are the commands subscribed by the client to control the internal state of
 #### `<topic_base>/cmnd/<device_name>/calib_pnts_dc`
 
 - **Description**: Gets or sets the calibration points for the DC difference (resolution) used to construct \(\rho(m/z)\). The points are represented as a 2D array, where each entry is a pair of *m/z* and \(\rho\) values. When setting these points, a new interpolation function (`interp_fnc_calib_pnts_dc`) is created based on the provided calibration points.
-- **Payload**: 
-  - To **set** calibration points: 
+- **Payload**:
+  - To **set** calibration points:
     - `"value": [[<float (m/z)_0>, <float \(\rho\)_0>], [<float (m/z)_1>, <float \(\rho\)_1>], ...]`
   - To **get** the current calibration points, no specific payload is required.
-- **Response Message**: 
+- **Response Message**:
   - `<topic_base>/response/<device_name>/calib_pnts_dc`
-- **Error Message**: 
+- **Error Message**:
   - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload (for setting calibration points):
+>
 > ```json
 > {
 >   "value": [[50.0, -0.001], [100.0, -0.002], [150.0, -0.003]]
@@ -228,16 +236,17 @@ These are the commands subscribed by the client to control the internal state of
 #### `<topic_base>/cmnd/<device_name>/calib_pnts_rf`
 
 - **Description**: Gets or sets the calibration points for the RF amplitude (*m/z* calibration) used to construct \(\delta(m/z)\). The points are represented as a 2D array, where each entry is a pair of *m/z* and \(\delta\) values. When setting these points, a new interpolation function (`interp_fnc_calib_pnts_rf`) is created based on the provided calibration points.
-- **Payload**: 
-  - To **set** calibration points: 
+- **Payload**:
+  - To **set** calibration points:
     - `"value": [[<float (m/z)_0>, <float \(\delta\)_0>], [<float (m/z)_1>, <float \(\delta\)_1>], ...]`
   - To **get** the current calibration points, no specific payload is required.
-- **Response Message**: 
+- **Response Message**:
   - `<topic_base>/response/<device_name>/calib_pnts_rf`
-- **Error Message**: 
+- **Error Message**:
   - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload (for setting calibration points):
+>
 > ```json
 > {
 >   "value": [[50.0, -0.001], [100.0, -0.0015], [150.0, -0.0005]]
@@ -247,16 +256,17 @@ These are the commands subscribed by the client to control the internal state of
 #### `<topic_base>/cmnd/<device_name>/dc_offst`
 
 - **Description**: Gets or sets the DC offset \( U_{\text{ofst}} \) (in Volts) for the system. The DC offset is calculated as \( U_{\text{ofst}} = \frac{U_1 + U_2}{2} \), where \( U_1 \) and \( U_2 \) are the voltages applied to the rods. When setting the DC offset, \( U_1 \) and \( U_2 \) are adjusted based on the provided offset and the current DC difference \( U_{\text{diff}} \).
-- **Payload**: 
+- **Payload**:
   - To **set** the DC offset:
     - `"value": <float>` - The desired DC offset value in volts.
   - To **get** the current DC offset, no specific payload is required.
-- **Response Message**: 
+- **Response Message**:
   - `<topic_base>/response/<device_name>/dc_offst`
-- **Error Message**: 
+- **Error Message**:
   - `<topic_base>/error/<device_name>/disconnected`
 
 > Example Payload (for setting the DC offset):
+>
 > ```json
 > {
 >   "value": -5.0
@@ -273,14 +283,15 @@ These messages are sent by the client in response to command messages.
 #### `<topic_base>/response/<device_name>/range`
 
 - **Description**: Returns the current mass range of the quadrupole.
-- **Payload**: 
-  - `"value": <int>` - The current mass measurement range of the quadrupole. 
+- **Payload**:
+  - `"value": <int>` - The current mass measurement range of the quadrupole.
     - `0`: Highest range, typically around 1050 kHz.
     - `1`: Mid-range, typically around 480 kHz.
     - `2`: Lowest range, typically around 240 kHz.
   - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
 
 > Example Payload:
+>
 > ```json
 > {
 >   "value": 1,
@@ -291,11 +302,12 @@ These messages are sent by the client in response to command messages.
 #### `<topic_base>/response/<device_name>/mz`
 
 - **Description**: Returns the last value of the *m/z* ratio.
-- **Payload**: 
+- **Payload**:
   - `"value": <float mz>` - The current *m/z* value.
   - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
 
 > Example Payload:
+>
 > ```json
 > {
 >   "value": 50.5,
@@ -306,11 +318,12 @@ These messages are sent by the client in response to command messages.
 #### `<topic_base>/response/<device_name>/is_dc_on`
 
 - **Description**: Returns the current status of the DC difference flag (`is_dc_on`), indicating whether the DC difference is applied to the rods.
-- **Payload**: 
+- **Payload**:
   - `"value": <bool>` - `True` if the DC difference is applied, `False` if it is not.
   - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
 
 > Example Payload:
+>
 > ```json
 > {
 >   "value": true,
@@ -321,11 +334,12 @@ These messages are sent by the client in response to command messages.
 #### `<topic_base>/response/<device_name>/is_rod_polarity_positive`
 
 - **Description**: Returns the current polarity of the DC difference applied to the rods (`is_rod_polarity_positive`).
-- **Payload**: 
+- **Payload**:
   - `"value": <bool>` - `True` if the polarity is positive, `False` if it is negative.
   - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
 
 > Example Payload:
+>
 > ```json
 > {
 >   "value": true,
@@ -336,11 +350,12 @@ These messages are sent by the client in response to command messages.
 #### `<topic_base>/response/<device_name>/max_mz`
 
 - **Description**: Returns the maximum *m/z* value of the quadrupole (`max_mz`).
-- **Payload**: 
+- **Payload**:
   - `"value": <float>` - The maximum *m/z* value.
   - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
 
 > Example Payload:
+>
 > ```json
 > {
 >   "value": 1000.0,
@@ -351,11 +366,12 @@ These messages are sent by the client in response to command messages.
 #### `<topic_base>/response/<device_name>/calib_pnts_dc`
 
 - **Description**: Returns the current calibration points for the DC difference (`calib_pnts_dc`) as a 2D array.
-- **Payload**: 
+- **Payload**:
   - `"value": [[<float (m/z)_0>, <float \(\rho\)_0>], [<float (m/z)_1>, <float \(\rho\)_1>], ...]` - The current or newly set calibration points.
   - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
 
 > Example Payload (for getting calibration points):
+>
 > ```json
 > {
 >   "value": [[50.0, -0.001], [100.0, -0.002], [150.0, -0.003]],
@@ -366,11 +382,12 @@ These messages are sent by the client in response to command messages.
 #### `<topic_base>/response/<device_name>/calib_pnts_rf`
 
 - **Description**: Returns the current calibration points for the RF amplitude (`calib_pnts_rf`) as a 2D array.
-- **Payload**: 
+- **Payload**:
   - `"value": [[<float (m/z)_0>, <float \(\delta\)_0>], [<float (m/z)_1>, <float \(\delta\)_1>], ...]` - The current or newly set calibration points.
   - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
 
 > Example Payload (for getting calibration points):
+>
 > ```json
 > {
 >   "value": [[50.0, -0.001], [100.0, -0.0015], [150.0, -0.0005]],
@@ -381,11 +398,12 @@ These messages are sent by the client in response to command messages.
 #### `<topic_base>/response/<device_name>/dc_offst`
 
 - **Description**: Returns the current DC offset \( U_{\text{ofst}} \) in volts.
-- **Payload**: 
+- **Payload**:
   - `"value": <float>` - The current or newly set DC offset value.
   - `"sender_payload": [<corresponding command's message payload>]` - The original command's payload for tracking.
 
 > Example Payload (for getting the DC offset):
+>
 > ```json
 > {
 >   "value": -5.0,
@@ -394,7 +412,7 @@ These messages are sent by the client in response to command messages.
 > ```
 
 ## Usage
-TODO ...
 
+TODO ...
 
 [qsource3Library]: https://github.com/jurajjasik/janascard-qsource3
