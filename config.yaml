@@ -6,7 +6,7 @@ mqtt_port: 1883
 mqtt_connection_timeout: 60
 
 number_of_ranges: 2
-r0: 5e-3
+r0: 5.5e-3
 qsource3_com_port: "ASRL3::INSTR"
 status_interval: 1000
 
