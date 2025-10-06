@@ -43,7 +43,7 @@ class QSource3Logic:
         self.r0 = r0
         self.comport = comport
         self.driver = None
-        self.quads = [None, None]
+        self.quads = [None] * self.number_of_ranges
         self.current_range = 0
 
         self._is_connected = False
