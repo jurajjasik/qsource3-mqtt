@@ -56,6 +56,11 @@ class QSource3MQTTClient:
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
+        self.client.will_set(
+            f"{self.topic_base}/status/{self.device_name}/broker_connected",
+            '{"value": "OFFLINE"}',
+            retain=True,
+        )
 
         self.qsource3 = QSource3Logic(
             comport=self.config["qsource3_com_port"],
@@ -101,6 +106,7 @@ class QSource3MQTTClient:
         # Subscribe to command topics
         if self.client is not None:
             self.client.subscribe(f"{self.topic_base}/cmnd/{self.device_name}/#")
+            self.publish_connected(True)
         else:
             logger.error("MQTT client is None in on_connect")
 
@@ -188,13 +194,25 @@ class QSource3MQTTClient:
                     json.dumps(status_payload),
                 )
 
-    def on_qsource3_connected(self):
-        """Publishes a retained message indicating the qsource3 is connected."""
+    def publish_connected(self, connected: bool):
+        """Publishes a retained message indicating the connection status."""
         if self.client is not None:
-            topic = f"{self.topic_base}/connected/{self.device_name}"
-            payload = "1"  # You can use any payload that indicates the device is connected, "1" is common
+            topic = f"{self.topic_base}/status/{self.device_name}/broker_connected"
+            payload = '{"value": "ONLINE"}' if connected else '{"value": "OFFLINE"}'
+            self.client.publish(topic, payload, retain=True)
+            logger.debug(f"Published broker connected status to {topic}")
+
+    def publish_qsource3_connected(self, connected: bool):
+        """Publishes a retained message indicating the qsource3 connection status."""
+        if self.client is not None:
+            topic = f"{self.topic_base}/status/{self.device_name}/qsource3_connected"
+            payload = '{"value": "True"}' if connected else '{"value": "False"}'
             self.client.publish(topic, payload, retain=True)
             logger.debug(f"Published qsource3 connected status to {topic}")
+
+    def on_qsource3_connected(self):
+        """Publishes a retained message indicating the qsource3 is connected."""
+        self.publish_qsource3_connected(True)
 
     def publish_response(self, command, value, sender_payload):
         if self.client is not None and self.client.is_connected():
@@ -256,3 +274,6 @@ class QSource3MQTTClient:
         self.last_time = time()
         while not self.disconnected[0] and not self.user_stop_event.is_set():
             self.do_select()
+
+        if self.client is not None:
+            self.publish_qsource3_connected(False)
