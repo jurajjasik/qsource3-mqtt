@@ -83,13 +83,8 @@ class QSource3MQTTClient:
                     self.config["mqtt_port"],
                     self.config["mqtt_connection_timeout"],
                 )
-                socket = self.client.socket()
-                if socket is not None:
-                    socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)  # type: ignore
-                else:
-                    logger.error("Socket is None after connecting to broker")
-            except:
-                # raise QSource3MQTTClientNotConnectedException()
+            except Exception as e:
+                logger.error(f"Error connecting to MQTT broker: {e}")
                 self.disconnected = True, -1
         else:
             logger.error("MQTT client is None in connect_to_broker")
@@ -261,5 +256,3 @@ class QSource3MQTTClient:
         self.last_time = time()
         while not self.disconnected[0] and not self.user_stop_event.is_set():
             self.do_select()
-
-        self.client = None
