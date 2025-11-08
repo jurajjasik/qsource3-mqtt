@@ -43,7 +43,7 @@ class QSource3Logic:
         self.r0 = r0
         self.comport = comport
         self.driver = None
-        self.quads = [None] * self.number_of_ranges
+        self.quads: list[Quadrupole] = []
         self.current_range = 0
 
         self._is_connected = False
@@ -63,11 +63,13 @@ class QSource3Logic:
                 self.driver.set_range(idx)
                 self._delay()
                 freq = self.driver.frequency
-                self.quads[idx] = Quadrupole(
-                    frequency=freq,
-                    r0=self.r0,
-                    driver=self.driver,
-                    name=f"Q{idx}",
+                self.quads.append(
+                    Quadrupole(
+                        frequency=freq,
+                        r0=self.r0,
+                        driver=self.driver,
+                        name=f"Q{idx}",
+                    )
                 )
                 self.quads[idx].mz = 0
             self._delay()
@@ -88,7 +90,7 @@ class QSource3Logic:
             else:
                 for idx in range(self.number_of_ranges):
                     self.quads[idx].calib_pnts_dc = self.check_calibration_points(
-                        settings["calib_pnts_dc"][idx]
+                        settings["calib_pnts_dc"].get(idx, [[[0, 0]], [[0, 0]]])
                     )
                     self.settings["calib_pnts_dc"][idx] = self.quads[
                         idx
@@ -99,7 +101,7 @@ class QSource3Logic:
                     self._delay()
 
                     self.quads[idx].calib_pnts_rf = self.check_calibration_points(
-                        settings["calib_pnts_rf"][idx]
+                        settings["calib_pnts_rf"].get(idx, [[[0, 0]], [[0, 0]]])
                     )
                     self.settings["calib_pnts_rf"][idx] = self.quads[
                         idx
@@ -110,21 +112,21 @@ class QSource3Logic:
                     self._delay()
 
                     self.quads[idx].dc_offst = self.check_number(
-                        settings["dc_offst"][idx]
+                        settings["dc_offst"].get(idx, 0)
                     )
                     self.settings["dc_offst"][idx] = self.quads[idx].dc_offst
                     logger.debug(f"DC offset: {self.quads[idx].dc_offst}")
                     self._delay()
 
                     self.quads[idx].is_dc_on = self.check_boolean(
-                        settings["is_dc_on"][idx]
+                        settings["is_dc_on"].get(idx, True)
                     )
                     self.settings["is_dc_on"][idx] = self.quads[idx].is_dc_on
                     logger.debug(f"Is DC on: {self.quads[idx].is_dc_on}")
                     self._delay()
 
                     self.quads[idx].is_rod_polarity_positive = self.check_boolean(
-                        settings["is_rod_polarity_positive"][idx]
+                        settings["is_rod_polarity_positive"].get(idx, True)
                     )
                     self.settings["is_rod_polarity_positive"][idx] = self.quads[
                         idx
@@ -134,7 +136,7 @@ class QSource3Logic:
                     )
                     self._delay()
 
-                self.current_range = self.check_mass_range(settings["range"])
+                self.current_range = self.check_mass_range(settings.get("range", 0))
                 self.driver.set_range(self.current_range)
                 self.settings["range"] = self.current_range
                 logger.debug(f"Current range: {self.current_range}")

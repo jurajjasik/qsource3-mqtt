@@ -49,6 +49,14 @@ class QSource3MQTTClient:
 
         self.load_config(config_file)
 
+        self.client = mqtt.Client(
+            client_id=self.config["client_id"],
+            clean_session=False,
+        )
+        self.client.on_connect = self.on_connect
+        self.client.on_message = self.on_message
+        self.client.on_disconnect = self.on_disconnect
+
         self.qsource3 = QSource3Logic(
             comport=self.config["qsource3_com_port"],
             r0=float(self.config["r0"]),
@@ -68,16 +76,24 @@ class QSource3MQTTClient:
         logger.debug(
             f'Connecting client_id {self.config["client_id"]} to brooker {self.config["mqtt_broker"]}:{self.config["mqtt_port"]}...'
         )
-        try:
-            self.client.connect(
-                self.config["mqtt_broker"],
-                self.config["mqtt_port"],
-                self.config["mqtt_connection_timeout"],
-            )
-            self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
-        except:
-            # raise QSource3MQTTClientNotConnectedException()
-            self.disconnected = True, -1
+        if self.client is not None:
+            try:
+                self.client.connect(
+                    self.config["mqtt_broker"],
+                    self.config["mqtt_port"],
+                    self.config["mqtt_connection_timeout"],
+                )
+                socket = self.client.socket()
+                if socket is not None:
+                    socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)  # type: ignore
+                else:
+                    logger.error("Socket is None after connecting to broker")
+            except:
+                # raise QSource3MQTTClientNotConnectedException()
+                self.disconnected = True, -1
+        else:
+            logger.error("MQTT client is None in connect_to_broker")
+            raise QSource3MQTTClientNotConnectedException("MQTT client is None")
 
     def on_connect(self, client, userdata, flags, reason_code):
         logger.debug(f"on_connect with reason code {reason_code}")
@@ -88,7 +104,10 @@ class QSource3MQTTClient:
             )
 
         # Subscribe to command topics
-        self.client.subscribe(f"{self.topic_base}/cmnd/{self.device_name}/#")
+        if self.client is not None:
+            self.client.subscribe(f"{self.topic_base}/cmnd/{self.device_name}/#")
+        else:
+            logger.error("MQTT client is None in on_connect")
 
     def on_disconnect(self, client, userdata, flags, reason_code=None):
         logger.debug(f"on_disconnect with reason code {reason_code}")
@@ -236,14 +255,6 @@ class QSource3MQTTClient:
 
     def main(self):
         self.disconnected = (False, None)
-
-        self.client = mqtt.Client(
-            client_id=self.config["client_id"],
-            clean_session=False,
-        )
-        self.client.on_connect = self.on_connect
-        self.client.on_message = self.on_message
-        self.client.on_disconnect = self.on_disconnect
 
         self.connect_to_broker()
 
