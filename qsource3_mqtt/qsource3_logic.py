@@ -25,12 +25,16 @@ def check_connection_decorator(method):
         try:
             return method(self, *args, **kwargs)
         except (VisaIOError, ConnectionError) as e:
+            logger.error(f"Connection lost during {method.__name__}: {e}")
             self._is_connected = False
             self.driver = None
-            self.quads = [None, None]
+            self.quads = [None] * self.number_of_ranges  # Reset all ranges properly
             raise QSource3NotConnectedException(
                 f"QSource3 peripheral is not connected. Error: {e}"
             )
+        except Exception as e:
+            logger.error(f"Unexpected error in {method.__name__}: {e}")
+            raise
 
     return wrapper
 
@@ -76,11 +80,13 @@ class QSource3Logic:
 
             self.settings = {
                 "range": 0,
-                "calib_pnts_dc": [[[0, 0]], [[0, 0]]],
-                "calib_pnts_rf": [[[0, 0]], [[0, 0]]],
-                "dc_offst": [0, 0],
-                "is_dc_on": [True, True],
-                "is_rod_polarity_positive": [True, True],
+                "calib_pnts_dc": [[[0, 0]] for _ in range(self.number_of_ranges)],
+                "calib_pnts_rf": [[[0, 0]] for _ in range(self.number_of_ranges)],
+                "dc_offst": [0 for _ in range(self.number_of_ranges)],
+                "is_dc_on": [True for _ in range(self.number_of_ranges)],
+                "is_rod_polarity_positive": [
+                    True for _ in range(self.number_of_ranges)
+                ],
             }
 
             settings = self.load_settings()
@@ -156,6 +162,13 @@ class QSource3Logic:
     @property
     @check_connection_decorator
     def is_dc_on(self) -> bool:
+        if (
+            self.current_range >= len(self.quads)
+            or self.quads[self.current_range] is None
+        ):
+            raise QSource3NotConnectedException(
+                "Invalid range or quadrupole not initialized"
+            )
         return self.quads[self.current_range].is_dc_on
 
     @is_dc_on.setter
@@ -282,8 +295,16 @@ class QSource3Logic:
             return None
 
     def save_settings(self):
-        with open(self.settings_file, "w") as f:
-            json.dump(self.settings, f, indent=4)
+        try:
+            with open(self.settings_file, "w") as f:
+                json.dump(self.settings, f, indent=4)
+            logger.debug(f"Settings saved to {self.settings_file}")
+        except (OSError, IOError, PermissionError) as e:
+            logger.error(f"Failed to save settings to {self.settings_file}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error saving settings: {e}")
+            raise
 
     def check_mass_range(self, value):
         if value < 0 or value >= self.number_of_ranges:

@@ -71,11 +71,73 @@ class QSource3MQTTClient:
         )
 
     def load_config(self, config_file):
-        with open(config_file, "r") as file:
-            self.config = yaml.safe_load(file)
+        try:
+            with open(config_file, "r") as file:
+                self.config = yaml.safe_load(file)
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {config_file}")
+            raise
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing YAML configuration: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error loading configuration: {e}")
+            raise
+
+        # Validate required configuration keys
+        required_keys = [
+            "client_id",
+            "topic_base",
+            "device_name",
+            "mqtt_broker",
+            "mqtt_port",
+            "status_interval",
+            "qsource3_com_port",
+            "r0",
+            "number_of_ranges",
+            "settings_file",
+        ]
+
+        missing_keys = [key for key in required_keys if key not in self.config]
+        if missing_keys:
+            raise ValueError(f"Missing required configuration keys: {missing_keys}")
+
         self.topic_base = self.config["topic_base"]
         self.device_name = self.config["device_name"]
         self.status_interval = self.config["status_interval"]
+
+    def _validate_payload_structure(self, payload, command_name):
+        """Validate basic payload structure."""
+        if not isinstance(payload, dict):
+            raise ValueError(
+                f"{command_name} payload must be a dictionary, got {type(payload)}"
+            )
+
+    def _validate_numeric_value(self, value, param_name, allow_negative=True):
+        """Validate that a value is numeric."""
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"{param_name} must be a number, got {type(value)}")
+        if not allow_negative and value < 0:
+            raise ValueError(f"{param_name} must be non-negative, got {value}")
+
+    def _validate_boolean_value(self, value, param_name):
+        """Validate that a value is boolean."""
+        if not isinstance(value, bool):
+            raise ValueError(f"{param_name} must be a boolean, got {type(value)}")
+
+    def _validate_calibration_points(self, points, param_name):
+        """Validate calibration points structure."""
+        if not isinstance(points, list):
+            raise ValueError(f"{param_name} must be a list, got {type(points)}")
+        for i, point in enumerate(points):
+            if not isinstance(point, list) or len(point) != 2:
+                raise ValueError(
+                    f"{param_name}[{i}] must be a list of 2 numbers, got {point}"
+                )
+            if not all(isinstance(coord, (int, float)) for coord in point):
+                raise ValueError(
+                    f"{param_name}[{i}] coordinates must be numbers, got {point}"
+                )
 
     def connect_to_broker(self):
         logger.debug(
@@ -116,35 +178,54 @@ class QSource3MQTTClient:
 
     def on_message(self, client, userdata, msg):
         topic = msg.topic
-        payload = json.loads(msg.payload)
+        try:
+            payload = json.loads(msg.payload)
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in message on topic {topic}: {e}")
+            return
+        except Exception as e:
+            logger.error(f"Error processing message on topic {topic}: {e}")
+            return
 
-        if topic.endswith("/is_dc_on"):
-            self.handle_is_dc_on(payload)
-        elif topic.endswith("/is_rod_polarity_positive"):
-            self.handle_is_rod_polarity_positive(payload)
-        elif topic.endswith("/max_mz"):
-            self.handle_max_mz(payload)
-        elif topic.endswith("/calib_pnts_dc"):
-            self.handle_calib_pnts_dc(payload)
-        elif topic.endswith("/calib_pnts_rf"):
-            self.handle_calib_pnts_rf(payload)
-        elif topic.endswith("/dc_offst"):
-            self.handle_dc_offst(payload)
-        elif topic.endswith("/range"):
-            self.handle_range(payload)
-        elif topic.endswith("/mz"):
-            self.handle_mz(payload)
+        try:
+            if topic.endswith("/is_dc_on"):
+                self.handle_is_dc_on(payload)
+            elif topic.endswith("/is_rod_polarity_positive"):
+                self.handle_is_rod_polarity_positive(payload)
+            elif topic.endswith("/max_mz"):
+                self.handle_max_mz(payload)
+            elif topic.endswith("/calib_pnts_dc"):
+                self.handle_calib_pnts_dc(payload)
+            elif topic.endswith("/calib_pnts_rf"):
+                self.handle_calib_pnts_rf(payload)
+            elif topic.endswith("/dc_offst"):
+                self.handle_dc_offst(payload)
+            elif topic.endswith("/range"):
+                self.handle_range(payload)
+            elif topic.endswith("/mz"):
+                self.handle_mz(payload)
+            else:
+                logger.warning(f"Unknown command topic: {topic}")
+        except Exception as e:
+            logger.error(f"Error handling message on topic {topic}: {e}")
+            # Extract command from topic for error reporting
+            command = topic.split("/")[-1] if "/" in topic else "unknown"
+            self.publish_error(command, f"Message handling error: {str(e)}")
 
     # Define handlers for each command topic
     @handle_connection_error
     def handle_is_dc_on(self, payload):
+        self._validate_payload_structure(payload, "is_dc_on")
         if "value" in payload:
+            self._validate_boolean_value(payload["value"], "is_dc_on")
             self.qsource3.is_dc_on = payload["value"]
         self.publish_response("is_dc_on", self.qsource3.is_dc_on, payload)
 
     @handle_connection_error
     def handle_is_rod_polarity_positive(self, payload):
+        self._validate_payload_structure(payload, "is_rod_polarity_positive")
         if "value" in payload:
+            self._validate_boolean_value(payload["value"], "is_rod_polarity_positive")
             self.qsource3.is_rod_polarity_positive = payload["value"]
         self.publish_response(
             "is_rod_polarity_positive", self.qsource3.is_rod_polarity_positive, payload
@@ -152,35 +233,58 @@ class QSource3MQTTClient:
 
     @handle_connection_error
     def handle_max_mz(self, payload):
+        self._validate_payload_structure(payload, "max_mz")
+        # This is a getter method, so no "value" expected
+        if "value" in payload:
+            logger.warning("max_mz is a read-only property, ignoring provided value")
         self.publish_response("max_mz", self.qsource3.max_mz, payload)
 
     @handle_connection_error
     def handle_calib_pnts_dc(self, payload):
+        self._validate_payload_structure(payload, "calib_pnts_dc")
         if "value" in payload:
+            self._validate_calibration_points(payload["value"], "calib_pnts_dc")
             self.qsource3.calib_pnts_dc = payload["value"]
         self.publish_response("calib_pnts_dc", self.qsource3.calib_pnts_dc, payload)
 
     @handle_connection_error
     def handle_calib_pnts_rf(self, payload):
+        self._validate_payload_structure(payload, "calib_pnts_rf")
         if "value" in payload:
+            self._validate_calibration_points(payload["value"], "calib_pnts_rf")
             self.qsource3.calib_pnts_rf = payload["value"]
         self.publish_response("calib_pnts_rf", self.qsource3.calib_pnts_rf, payload)
 
     @handle_connection_error
     def handle_dc_offst(self, payload):
+        self._validate_payload_structure(payload, "dc_offst")
         if "value" in payload:
+            self._validate_numeric_value(
+                payload["value"], "dc_offst", allow_negative=True
+            )
             self.qsource3.dc_offst = payload["value"]
         self.publish_response("dc_offst", self.qsource3.dc_offst, payload)
 
     @handle_connection_error
     def handle_range(self, payload):
+        self._validate_payload_structure(payload, "range")
         if "value" in payload:
+            if not isinstance(payload["value"], int):
+                raise ValueError(
+                    f"range value must be an integer, got {type(payload['value'])}"
+                )
+            self._validate_numeric_value(
+                payload["value"], "range", allow_negative=False
+            )
+            # Note: Upper bound checking is handled in qsource3_logic.py set_range method
             self.qsource3.set_range(payload["value"])
         self.publish_response("range", self.qsource3.get_range(), payload)
 
     @handle_connection_error
     def handle_mz(self, payload):
+        self._validate_payload_structure(payload, "mz")
         if "value" in payload:
+            self._validate_numeric_value(payload["value"], "mz", allow_negative=False)
             self.qsource3.mz = payload["value"]
         self.publish_response("mz", self.qsource3.mz, payload)
 
