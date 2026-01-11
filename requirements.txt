@@ -1,0 +1,5 @@
+paho_mqtt>=2.1.0
+pyvisa>=1.16.0
+PyVISA-py>=0.8.1
+PyYAML>=6.0.3
+qsource3 @ git+https://github.com/jurajjasik/janascard-qsource3.git@8738b44346844fb07147390f3f5e41369776c72b
