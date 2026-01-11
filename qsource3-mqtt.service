@@ -1,12 +1,11 @@
 [Unit]
-Description=qsource3-mqtt Service
-After=multi-user.target
-
+Description=QSource3-MQTT Service
+After=network.target
 [Service]
-Type=idle
-User=jasik
-ExecStart=/usr/bin/python3 /home/jasik/qsource3-mqtt/qsource3_mqtt_main.py /home/jasik/qsource3-mqtt/config.yaml
-Restart=always
-
+User=root   
+Group=lqit
+WorkingDirectory=/opt/lqit/qsource3-mqtt
+ExecStart=/opt/lqit/qsource3-mqtt/venv/bin/python /opt/lqit/qsource3-mqtt/qsource3_mqtt.py /opt/lqit/qsource3-mqtt/config.yaml
+Restart=on-failure
 [Install]
 WantedBy=multi-user.target
