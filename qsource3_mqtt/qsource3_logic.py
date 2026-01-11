@@ -25,12 +25,16 @@ def check_connection_decorator(method):
         try:
             return method(self, *args, **kwargs)
         except (VisaIOError, ConnectionError) as e:
+            logger.error(f"Connection lost during {method.__name__}: {e}")
             self._is_connected = False
             self.driver = None
-            self.quads = [None, None]
+            self.quads = [None] * self.number_of_ranges  # Reset all ranges properly
             raise QSource3NotConnectedException(
                 f"QSource3 peripheral is not connected. Error: {e}"
             )
+        except Exception as e:
+            logger.error(f"Unexpected error in {method.__name__}: {e}")
+            raise
 
     return wrapper
 
@@ -43,7 +47,7 @@ class QSource3Logic:
         self.r0 = r0
         self.comport = comport
         self.driver = None
-        self.quads = [None] * self.number_of_ranges
+        self.quads: list[Quadrupole] = []
         self.current_range = 0
 
         self._is_connected = False
@@ -55,6 +59,15 @@ class QSource3Logic:
     def _delay(self):
         time.sleep(0.1)
 
+    def _default_calibration_points(self):
+        return [[[0, 0]] for _ in range(self.number_of_ranges)]
+
+    def _default_zeros_list(self):
+        return [0 for _ in range(self.number_of_ranges)]
+
+    def _default_booleans_list(self):
+        return [True for _ in range(self.number_of_ranges)]
+
     def try_connect(self):
         try:
             self.driver = QSource3Driver(self.comport)
@@ -63,22 +76,24 @@ class QSource3Logic:
                 self.driver.set_range(idx)
                 self._delay()
                 freq = self.driver.frequency
-                self.quads[idx] = Quadrupole(
-                    frequency=freq,
-                    r0=self.r0,
-                    driver=self.driver,
-                    name=f"Q{idx}",
+                self.quads.append(
+                    Quadrupole(
+                        frequency=freq,
+                        r0=self.r0,
+                        driver=self.driver,
+                        name=f"Q{idx}",
+                    )
                 )
                 self.quads[idx].mz = 0
             self._delay()
 
             self.settings = {
                 "range": 0,
-                "calib_pnts_dc": [[[0, 0]], [[0, 0]]],
-                "calib_pnts_rf": [[[0, 0]], [[0, 0]]],
-                "dc_offst": [0, 0],
-                "is_dc_on": [True, True],
-                "is_rod_polarity_positive": [True, True],
+                "calib_pnts_dc": self._default_calibration_points(),
+                "calib_pnts_rf": self._default_calibration_points(),
+                "dc_offst": self._default_zeros_list(),
+                "is_dc_on": self._default_booleans_list(),
+                "is_rod_polarity_positive": self._default_booleans_list(),
             }
 
             settings = self.load_settings()
@@ -86,55 +101,124 @@ class QSource3Logic:
                 self.driver.set_range(self.current_range)
 
             else:
-                for idx in range(self.number_of_ranges):
-                    self.quads[idx].calib_pnts_dc = self.check_calibration_points(
-                        settings["calib_pnts_dc"][idx]
+                # Validate and ensure all required keys exist
+                if not isinstance(settings, dict):
+                    logger.warning(
+                        "Loaded settings is not a dictionary. Using defaults."
                     )
-                    self.settings["calib_pnts_dc"][idx] = self.quads[
-                        idx
-                    ].calib_pnts_dc.tolist()
+                    settings = {}
+
+                # Extract settings with defaults for missing keys
+                calib_pnts_dc = settings.get("calib_pnts_dc", [])
+                calib_pnts_rf = settings.get("calib_pnts_rf", [])
+                dc_offst = settings.get("dc_offst", [])
+                is_dc_on = settings.get("is_dc_on", [])
+                is_rod_polarity_positive = settings.get("is_rod_polarity_positive", [])
+
+                # Ensure they are lists
+                if not isinstance(calib_pnts_dc, list):
+                    calib_pnts_dc = []
+                if not isinstance(calib_pnts_rf, list):
+                    calib_pnts_rf = []
+                if not isinstance(dc_offst, list):
+                    dc_offst = []
+                if not isinstance(is_dc_on, list):
+                    is_dc_on = []
+                if not isinstance(is_rod_polarity_positive, list):
+                    is_rod_polarity_positive = []
+
+                for idx in range(self.number_of_ranges):
+                    # Get calibration points DC with safe indexing
+                    if idx < len(calib_pnts_dc):
+                        calib_dc_value = calib_pnts_dc[idx]
+                    else:
+                        calib_dc_value = [[0, 0]]
+
+                    self.quads[idx].calib_pnts_dc = self.check_calibration_points(
+                        calib_dc_value
+                    )
+                    # Store as list - call tolist() if it's a numpy array, otherwise use as-is
+                    if hasattr(self.quads[idx].calib_pnts_dc, "tolist"):
+                        self.settings["calib_pnts_dc"][idx] = self.quads[
+                            idx
+                        ].calib_pnts_dc.tolist()
+                    else:
+                        self.settings["calib_pnts_dc"][idx] = self.quads[
+                            idx
+                        ].calib_pnts_dc
                     logger.debug(
-                        f"Calibration points DC: {self.quads[idx].calib_pnts_dc}"
+                        f"Calibration points DC for range {idx}: {self.quads[idx].calib_pnts_dc}"
                     )
                     self._delay()
+
+                    # Get calibration points RF with safe indexing
+                    if idx < len(calib_pnts_rf):
+                        calib_rf_value = calib_pnts_rf[idx]
+                    else:
+                        calib_rf_value = [[0, 0]]
 
                     self.quads[idx].calib_pnts_rf = self.check_calibration_points(
-                        settings["calib_pnts_rf"][idx]
+                        calib_rf_value
                     )
-                    self.settings["calib_pnts_rf"][idx] = self.quads[
-                        idx
-                    ].calib_pnts_rf.tolist()
+                    # Store as list - call tolist() if it's a numpy array, otherwise use as-is
+                    if hasattr(self.quads[idx].calib_pnts_rf, "tolist"):
+                        self.settings["calib_pnts_rf"][idx] = self.quads[
+                            idx
+                        ].calib_pnts_rf.tolist()
+                    else:
+                        self.settings["calib_pnts_rf"][idx] = self.quads[
+                            idx
+                        ].calib_pnts_rf
                     logger.debug(
-                        f"Calibration points RF: {self.quads[idx].calib_pnts_rf}"
+                        f"Calibration points RF for range {idx}: {self.quads[idx].calib_pnts_rf}"
                     )
                     self._delay()
 
-                    self.quads[idx].dc_offst = self.check_number(
-                        settings["dc_offst"][idx]
-                    )
+                    # Get DC offset with safe indexing
+                    if idx < len(dc_offst):
+                        dc_offst_value = dc_offst[idx]
+                    else:
+                        dc_offst_value = 0
+
+                    self.quads[idx].dc_offst = self.check_number(dc_offst_value)
                     self.settings["dc_offst"][idx] = self.quads[idx].dc_offst
-                    logger.debug(f"DC offset: {self.quads[idx].dc_offst}")
+                    logger.debug(
+                        f"DC offset for range {idx}: {self.quads[idx].dc_offst}"
+                    )
                     self._delay()
 
-                    self.quads[idx].is_dc_on = self.check_boolean(
-                        settings["is_dc_on"][idx]
-                    )
+                    # Get is_dc_on with safe indexing
+                    if idx < len(is_dc_on):
+                        is_dc_on_value = is_dc_on[idx]
+                    else:
+                        is_dc_on_value = True
+
+                    self.quads[idx].is_dc_on = self.check_boolean(is_dc_on_value)
                     self.settings["is_dc_on"][idx] = self.quads[idx].is_dc_on
-                    logger.debug(f"Is DC on: {self.quads[idx].is_dc_on}")
+                    logger.debug(
+                        f"Is DC on for range {idx}: {self.quads[idx].is_dc_on}"
+                    )
                     self._delay()
+
+                    # Get is_rod_polarity_positive with safe indexing
+                    if idx < len(is_rod_polarity_positive):
+                        is_rod_polarity_positive_value = is_rod_polarity_positive[idx]
+                    else:
+                        is_rod_polarity_positive_value = True
 
                     self.quads[idx].is_rod_polarity_positive = self.check_boolean(
-                        settings["is_rod_polarity_positive"][idx]
+                        is_rod_polarity_positive_value
                     )
                     self.settings["is_rod_polarity_positive"][idx] = self.quads[
                         idx
                     ].is_rod_polarity_positive
                     logger.debug(
-                        f"Is rod polarity positive: {self.quads[idx].is_rod_polarity_positive}"
+                        f"Is rod polarity positive for range {idx}: {self.quads[idx].is_rod_polarity_positive}"
                     )
                     self._delay()
 
-                self.current_range = self.check_mass_range(settings["range"])
+                # Set the current range
+                self.current_range = self.check_mass_range(settings.get("range", 0))
                 self.driver.set_range(self.current_range)
                 self.settings["range"] = self.current_range
                 logger.debug(f"Current range: {self.current_range}")
@@ -154,6 +238,13 @@ class QSource3Logic:
     @property
     @check_connection_decorator
     def is_dc_on(self) -> bool:
+        if (
+            self.current_range >= len(self.quads)
+            or self.quads[self.current_range] is None
+        ):
+            raise QSource3NotConnectedException(
+                "Invalid range or quadrupole not initialized"
+            )
         return self.quads[self.current_range].is_dc_on
 
     @is_dc_on.setter
@@ -276,12 +367,26 @@ class QSource3Logic:
                 logger.info(f"Loading settings from {self.settings_file}")
                 return json.load(f)
         except FileNotFoundError:
-            logger.info(f"Settings file {self.settings_file} not found")
+            logger.info(
+                f"Settings file {self.settings_file} not found. Using default settings."
+            )
+            return None
+        except Exception as e:
+            logger.error(f"Failed to load settings from {self.settings_file}: {e}")
+            logger.info("Using default settings.")
             return None
 
     def save_settings(self):
-        with open(self.settings_file, "w") as f:
-            json.dump(self.settings, f, indent=4)
+        try:
+            with open(self.settings_file, "w") as f:
+                json.dump(self.settings, f, indent=4)
+            logger.debug(f"Settings saved to {self.settings_file}")
+        except (OSError, IOError, PermissionError) as e:
+            logger.error(f"Failed to save settings to {self.settings_file}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error saving settings: {e}")
+            raise
 
     def check_mass_range(self, value):
         if value < 0 or value >= self.number_of_ranges:
@@ -289,17 +394,20 @@ class QSource3Logic:
             return 0
         return value
 
-    def check_calibration_points(self, value):
+    def check_calibration_points(self, value: list | None = None):
         # check if value is a list of number pairs in the format [[x1, y1], [x2, y2], ...]
+        if value is None:
+            return self._default_calibration_points()
+
         if not isinstance(value, list):
-            return [[[0, 0]], [[0, 0]]]
+            return self._default_calibration_points()
 
         for pair in value:
             if not isinstance(pair, list) or len(pair) != 2:
-                return [[[0, 0]], [[0, 0]]]
+                return self._default_calibration_points()
             for number in pair:
                 if not isinstance(number, (int, float)):
-                    return [[[0, 0]], [[0, 0]]]
+                    return self._default_calibration_points()
 
         return value
 

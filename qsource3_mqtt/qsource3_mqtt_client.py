@@ -49,6 +49,19 @@ class QSource3MQTTClient:
 
         self.load_config(config_file)
 
+        self.client = mqtt.Client(
+            client_id=self.config["client_id"],
+            clean_session=False,
+        )
+        self.client.on_connect = self.on_connect
+        self.client.on_message = self.on_message
+        self.client.on_disconnect = self.on_disconnect
+        self.client.will_set(
+            f"{self.topic_base}/status/{self.device_name}/broker_connected",
+            '{"value": "OFFLINE"}',
+            retain=True,
+        )
+
         self.qsource3 = QSource3Logic(
             comport=self.config["qsource3_com_port"],
             r0=float(self.config["r0"]),
@@ -58,26 +71,91 @@ class QSource3MQTTClient:
         )
 
     def load_config(self, config_file):
-        with open(config_file, "r") as file:
-            self.config = yaml.safe_load(file)
+        try:
+            with open(config_file, "r") as file:
+                self.config = yaml.safe_load(file)
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {config_file}")
+            raise
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing YAML configuration: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error loading configuration: {e}")
+            raise
+
+        # Validate required configuration keys
+        required_keys = [
+            "client_id",
+            "topic_base",
+            "device_name",
+            "mqtt_broker",
+            "mqtt_port",
+            "status_interval",
+            "qsource3_com_port",
+            "r0",
+            "number_of_ranges",
+            "settings_file",
+        ]
+
+        missing_keys = [key for key in required_keys if key not in self.config]
+        if missing_keys:
+            raise ValueError(f"Missing required configuration keys: {missing_keys}")
+
         self.topic_base = self.config["topic_base"]
         self.device_name = self.config["device_name"]
         self.status_interval = self.config["status_interval"]
+
+    def _validate_payload_structure(self, payload, command_name):
+        """Validate basic payload structure."""
+        if not isinstance(payload, dict):
+            raise ValueError(
+                f"{command_name} payload must be a dictionary, got {type(payload)}"
+            )
+
+    def _validate_numeric_value(self, value, param_name, allow_negative=True):
+        """Validate that a value is numeric."""
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"{param_name} must be a number, got {type(value)}")
+        if not allow_negative and value < 0:
+            raise ValueError(f"{param_name} must be non-negative, got {value}")
+
+    def _validate_boolean_value(self, value, param_name):
+        """Validate that a value is boolean."""
+        if not isinstance(value, bool):
+            raise ValueError(f"{param_name} must be a boolean, got {type(value)}")
+
+    def _validate_calibration_points(self, points, param_name):
+        """Validate calibration points structure."""
+        if not isinstance(points, list):
+            raise ValueError(f"{param_name} must be a list, got {type(points)}")
+        for i, point in enumerate(points):
+            if not isinstance(point, list) or len(point) != 2:
+                raise ValueError(
+                    f"{param_name}[{i}] must be a list of 2 numbers, got {point}"
+                )
+            if not all(isinstance(coord, (int, float)) for coord in point):
+                raise ValueError(
+                    f"{param_name}[{i}] coordinates must be numbers, got {point}"
+                )
 
     def connect_to_broker(self):
         logger.debug(
             f'Connecting client_id {self.config["client_id"]} to brooker {self.config["mqtt_broker"]}:{self.config["mqtt_port"]}...'
         )
-        try:
-            self.client.connect(
-                self.config["mqtt_broker"],
-                self.config["mqtt_port"],
-                self.config["mqtt_connection_timeout"],
-            )
-            self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
-        except:
-            # raise QSource3MQTTClientNotConnectedException()
-            self.disconnected = True, -1
+        if self.client is not None:
+            try:
+                self.client.connect(
+                    self.config["mqtt_broker"],
+                    self.config["mqtt_port"],
+                    self.config["mqtt_connection_timeout"],
+                )
+            except Exception as e:
+                logger.error(f"Error connecting to MQTT broker: {e}")
+                self.disconnected = True, -1
+        else:
+            logger.error("MQTT client is None in connect_to_broker")
+            raise QSource3MQTTClientNotConnectedException("MQTT client is None")
 
     def on_connect(self, client, userdata, flags, reason_code):
         logger.debug(f"on_connect with reason code {reason_code}")
@@ -88,7 +166,11 @@ class QSource3MQTTClient:
             )
 
         # Subscribe to command topics
-        self.client.subscribe(f"{self.topic_base}/cmnd/{self.device_name}/#")
+        if self.client is not None:
+            self.client.subscribe(f"{self.topic_base}/cmnd/{self.device_name}/#")
+            self.publish_connected(True)
+        else:
+            logger.error("MQTT client is None in on_connect")
 
     def on_disconnect(self, client, userdata, flags, reason_code=None):
         logger.debug(f"on_disconnect with reason code {reason_code}")
@@ -96,35 +178,54 @@ class QSource3MQTTClient:
 
     def on_message(self, client, userdata, msg):
         topic = msg.topic
-        payload = json.loads(msg.payload)
+        try:
+            payload = json.loads(msg.payload)
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in message on topic {topic}: {e}")
+            return
+        except Exception as e:
+            logger.error(f"Error processing message on topic {topic}: {e}")
+            return
 
-        if topic.endswith("/is_dc_on"):
-            self.handle_is_dc_on(payload)
-        elif topic.endswith("/is_rod_polarity_positive"):
-            self.handle_is_rod_polarity_positive(payload)
-        elif topic.endswith("/max_mz"):
-            self.handle_max_mz(payload)
-        elif topic.endswith("/calib_pnts_dc"):
-            self.handle_calib_pnts_dc(payload)
-        elif topic.endswith("/calib_pnts_rf"):
-            self.handle_calib_pnts_rf(payload)
-        elif topic.endswith("/dc_offst"):
-            self.handle_dc_offst(payload)
-        elif topic.endswith("/range"):
-            self.handle_range(payload)
-        elif topic.endswith("/mz"):
-            self.handle_mz(payload)
+        try:
+            if topic.endswith("/is_dc_on"):
+                self.handle_is_dc_on(payload)
+            elif topic.endswith("/is_rod_polarity_positive"):
+                self.handle_is_rod_polarity_positive(payload)
+            elif topic.endswith("/max_mz"):
+                self.handle_max_mz(payload)
+            elif topic.endswith("/calib_pnts_dc"):
+                self.handle_calib_pnts_dc(payload)
+            elif topic.endswith("/calib_pnts_rf"):
+                self.handle_calib_pnts_rf(payload)
+            elif topic.endswith("/dc_offst"):
+                self.handle_dc_offst(payload)
+            elif topic.endswith("/range"):
+                self.handle_range(payload)
+            elif topic.endswith("/mz"):
+                self.handle_mz(payload)
+            else:
+                logger.warning(f"Unknown command topic: {topic}")
+        except Exception as e:
+            logger.error(f"Error handling message on topic {topic}: {e}")
+            # Extract command from topic for error reporting
+            command = topic.split("/")[-1] if "/" in topic else "unknown"
+            self.publish_error(command, f"Message handling error: {str(e)}")
 
     # Define handlers for each command topic
     @handle_connection_error
     def handle_is_dc_on(self, payload):
+        self._validate_payload_structure(payload, "is_dc_on")
         if "value" in payload:
+            self._validate_boolean_value(payload["value"], "is_dc_on")
             self.qsource3.is_dc_on = payload["value"]
         self.publish_response("is_dc_on", self.qsource3.is_dc_on, payload)
 
     @handle_connection_error
     def handle_is_rod_polarity_positive(self, payload):
+        self._validate_payload_structure(payload, "is_rod_polarity_positive")
         if "value" in payload:
+            self._validate_boolean_value(payload["value"], "is_rod_polarity_positive")
             self.qsource3.is_rod_polarity_positive = payload["value"]
         self.publish_response(
             "is_rod_polarity_positive", self.qsource3.is_rod_polarity_positive, payload
@@ -132,35 +233,58 @@ class QSource3MQTTClient:
 
     @handle_connection_error
     def handle_max_mz(self, payload):
+        self._validate_payload_structure(payload, "max_mz")
+        # This is a getter method, so no "value" expected
+        if "value" in payload:
+            logger.warning("max_mz is a read-only property, ignoring provided value")
         self.publish_response("max_mz", self.qsource3.max_mz, payload)
 
     @handle_connection_error
     def handle_calib_pnts_dc(self, payload):
+        self._validate_payload_structure(payload, "calib_pnts_dc")
         if "value" in payload:
+            self._validate_calibration_points(payload["value"], "calib_pnts_dc")
             self.qsource3.calib_pnts_dc = payload["value"]
         self.publish_response("calib_pnts_dc", self.qsource3.calib_pnts_dc, payload)
 
     @handle_connection_error
     def handle_calib_pnts_rf(self, payload):
+        self._validate_payload_structure(payload, "calib_pnts_rf")
         if "value" in payload:
+            self._validate_calibration_points(payload["value"], "calib_pnts_rf")
             self.qsource3.calib_pnts_rf = payload["value"]
         self.publish_response("calib_pnts_rf", self.qsource3.calib_pnts_rf, payload)
 
     @handle_connection_error
     def handle_dc_offst(self, payload):
+        self._validate_payload_structure(payload, "dc_offst")
         if "value" in payload:
+            self._validate_numeric_value(
+                payload["value"], "dc_offst", allow_negative=True
+            )
             self.qsource3.dc_offst = payload["value"]
         self.publish_response("dc_offst", self.qsource3.dc_offst, payload)
 
     @handle_connection_error
     def handle_range(self, payload):
+        self._validate_payload_structure(payload, "range")
         if "value" in payload:
+            if not isinstance(payload["value"], int):
+                raise ValueError(
+                    f"range value must be an integer, got {type(payload['value'])}"
+                )
+            self._validate_numeric_value(
+                payload["value"], "range", allow_negative=False
+            )
+            # Note: Upper bound checking is handled in qsource3_logic.py set_range method
             self.qsource3.set_range(payload["value"])
         self.publish_response("range", self.qsource3.get_range(), payload)
 
     @handle_connection_error
     def handle_mz(self, payload):
+        self._validate_payload_structure(payload, "mz")
         if "value" in payload:
+            self._validate_numeric_value(payload["value"], "mz", allow_negative=False)
             self.qsource3.mz = payload["value"]
         self.publish_response("mz", self.qsource3.mz, payload)
 
@@ -174,13 +298,25 @@ class QSource3MQTTClient:
                     json.dumps(status_payload),
                 )
 
-    def on_qsource3_connected(self):
-        """Publishes a retained message indicating the qsource3 is connected."""
+    def publish_connected(self, connected: bool):
+        """Publishes a retained message indicating the connection status."""
         if self.client is not None:
-            topic = f"{self.topic_base}/connected/{self.device_name}"
-            payload = "1"  # You can use any payload that indicates the device is connected, "1" is common
+            topic = f"{self.topic_base}/status/{self.device_name}/broker_connected"
+            payload = '{"value": "ONLINE"}' if connected else '{"value": "OFFLINE"}'
+            self.client.publish(topic, payload, retain=True)
+            logger.debug(f"Published broker connected status to {topic}")
+
+    def publish_qsource3_connected(self, connected: bool):
+        """Publishes a retained message indicating the qsource3 connection status."""
+        if self.client is not None:
+            topic = f"{self.topic_base}/status/{self.device_name}/qsource3_connected"
+            payload = '{"value": "True"}' if connected else '{"value": "False"}'
             self.client.publish(topic, payload, retain=True)
             logger.debug(f"Published qsource3 connected status to {topic}")
+
+    def on_qsource3_connected(self):
+        """Publishes a retained message indicating the qsource3 is connected."""
+        self.publish_qsource3_connected(True)
 
     def publish_response(self, command, value, sender_payload):
         if self.client is not None and self.client.is_connected():
@@ -237,18 +373,11 @@ class QSource3MQTTClient:
     def main(self):
         self.disconnected = (False, None)
 
-        self.client = mqtt.Client(
-            client_id=self.config["client_id"],
-            clean_session=False,
-        )
-        self.client.on_connect = self.on_connect
-        self.client.on_message = self.on_message
-        self.client.on_disconnect = self.on_disconnect
-
         self.connect_to_broker()
 
         self.last_time = time()
         while not self.disconnected[0] and not self.user_stop_event.is_set():
             self.do_select()
 
-        self.client = None
+        if self.client is not None:
+            self.publish_qsource3_connected(False)
