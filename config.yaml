@@ -11,4 +11,4 @@ qsource3_com_port: "ASRL/dev/ttyUSB0::INSTR"
 status_interval: 1000
 
 # Full path to settings file due to running as a service
-settings_file: "/home/jasik/qsource3-mqtt/settings.json"
+settings_file: "/opt/lqit/qsource3-mqtt/settings.json"
